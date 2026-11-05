@@ -476,10 +476,14 @@ function drawChart(ss) {
 function roundRect(g, x, y, w, h) { if (h <= 0) return; const r = Math.min(3, w / 2, h); g.beginPath(); g.moveTo(x, y + h); g.lineTo(x, y + r); g.quadraticCurveTo(x, y, x + r, y); g.lineTo(x + w - r, y); g.quadraticCurveTo(x + w, y, x + w, y + r); g.lineTo(x + w, y + h); g.fill(); }
 
 function downloadCsv(name, rows) {
-  const csv = '﻿' + rows.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  const csv = rows.map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
+  // копируем в буфер (работает и там, где скачивание файлов запрещено) и пробуем скачать
+  navigator.clipboard?.writeText(csv).then(() => toast(`${name}: CSV скопирован в буфер обмена`, 'ok'), () => {});
+  try {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  } catch {}
 }
 $('#csvJournal').onclick = () => {
   const rows = scopeSites().flatMap((s) => s.journal).sort((a, b) => a.t - b.t);
