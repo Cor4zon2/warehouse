@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>СкладПилот</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand"><span class="logo">◈</span><span>СкладПилот</span></div>
+      <div class="search">
+        <span class="i">⌕</span>
+        <input id="search" placeholder="Поиск: машины, погрузчики, товары, отгрузки…" autocomplete="off" />
+        <kbd>/</kbd>
+        <div id="searchResults" class="dropdown hidden"></div>
+      </div>
+      <div class="spacer"></div>
+      <div class="sitepick">
+        <button id="siteBtn" class="site-btn"></button>
+        <div id="siteMenu" class="dropdown hidden"></div>
+      </div>
+      <div class="live"><span class="pulse"></span>Live <b id="clock">--:--</b></div>
+      <div class="speed" id="speed">
+        <button data-s="0" title="Пауза">❚❚</button>
+        <button data-s="1" class="on">×1</button>
+        <button data-s="3">×3</button>
+        <button data-s="8">×8</button>
+      </div>
+      <button class="icon-btn" id="reportsBtn" title="Отчёты">▤ <span class="hide-sm">Отчёты</span></button>
+      <div class="bell-wrap">
+        <button class="icon-btn" id="bellBtn" title="Уведомления">🔔<span id="bellCount" class="badge hidden">0</span></button>
+        <div id="alerts" class="dropdown alerts hidden"></div>
+      </div>
+      <div class="user hide-sm"><div class="avatar">АЧ</div><div><b>Алексей Чен</b><small>Руководитель смены</small></div></div>
+    </header>
+
+    <main id="viewport">
+      <div id="labels"></div>
+
+      <section class="kpis">
+        <div class="kpi"><div class="ic">▦</div><div><small>Остаток на складе</small><b id="kStock">0</b><em id="kStockD"></em><i id="kStockS"></i></div></div>
+        <div class="kpi"><div class="ic">⛟</div><div><small>Машин на площадке</small><b id="kTrucks">0</b><em id="kTrucksD"></em><i id="kTrucksS"></i></div></div>
+        <div class="kpi"><div class="ic">◷</div><div><small>Вовремя</small><b id="kOnTime">0%</b><em id="kOnTimeD"></em><i>за смену</i></div></div>
+        <div class="kpi hide-sm"><div class="ic">⇅</div><div><small>Паллет обработано</small><b id="kOps">0</b><em id="kOpsD"></em><i id="kOpsS"></i></div></div>
+      </section>
+
+      <div class="mapctl">
+        <button data-a="in" title="Приблизить">+</button>
+        <button data-a="out" title="Отдалить">−</button>
+        <button data-a="rl" title="Повернуть">↺</button>
+        <button data-a="rr" title="Повернуть">↻</button>
+        <button data-a="home" title="Сбросить вид">⌂</button>
+      </div>
+
+      <aside class="panel detail" id="detail"></aside>
+      <button class="panel-toggle" id="detailToggle">Детали ▴</button>
+
+      <section class="panel tracking" id="tracking"></section>
+
+      <section class="panel fleet">
+        <div class="tabs" id="fleetTabs">
+          <button data-t="docks" class="on">Ворота <span></span></button>
+          <button data-t="forks">Погрузчики <span></span></button>
+          <button data-t="trucks">Машины <span></span></button>
+        </div>
+        <div id="fleetBody"></div>
+      </section>
+
+      <div class="hint">ЛКМ — двигать · ПКМ/Shift — вращать · колесо — масштаб · клик — выбрать объект</div>
+      <div id="toasts"></div>
+    </main>
+  </div>
+
+  <div class="modal hidden" id="reports">
+    <div class="modal-card wide">
+      <header><h2>Отчётность по складу</h2>
+        <div class="seg" id="repScope"><button data-v="site" class="on">Текущий склад</button><button data-v="all">Все склады</button></div>
+        <button class="x" data-close>✕</button></header>
+      <div class="rep-kpis" id="repKpis"></div>
+      <div class="rep-grid">
+        <div class="card"><h3>Паллеты по часам</h3><canvas id="repChart" height="180"></canvas>
+          <div class="legend"><span class="sw in"></span>Приёмка <span class="sw out"></span>Отгрузка</div></div>
+        <div class="card"><h3>Остатки</h3><div id="repStock"></div></div>
+      </div>
+      <div class="card">
+        <div class="row-between"><h3>Журнал операций</h3>
+          <div class="seg" id="repFilter">
+            <button data-v="" class="on">Все</button><button data-v="arrive">Прибытия</button><button data-v="unload">Разгрузки</button><button data-v="load">Погрузки</button><button data-v="depart">Убытия</button>
+          </div>
+          <div><button class="btn ghost" id="csvJournal">⇩ Журнал CSV</button> <button class="btn ghost" id="csvStock">⇩ Остатки CSV</button></div>
+        </div>
+        <div class="journal" id="repJournal"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="orderModal">
+    <form class="modal-card" id="orderForm">
+      <header><h2 id="orderTitle">Новый рейс</h2><button type="button" class="x" data-close>✕</button></header>
+      <div class="seg full" id="orderType"><button type="button" data-v="out" class="on">⇡ Отгрузка клиенту</button><button type="button" data-v="in">⇣ Поставка на склад</button></div>
+      <label>Товар<select name="sku" id="orderSku"></select></label>
+      <div class="two">
+        <label>Паллет<input name="pallets" type="number" min="1" max="20" value="8" /></label>
+        <label>Окно, мин<input name="window" type="number" min="20" max="300" value="90" /></label>
+      </div>
+      <label id="partyLbl">Получатель<input name="party" id="orderParty" placeholder="Москва" /></label>
+      <p class="muted" id="orderHint"></p>
+      <footer><button type="button" class="btn ghost" data-close>Отмена</button><button class="btn primary">Создать рейс</button></footer>
+    </form>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
